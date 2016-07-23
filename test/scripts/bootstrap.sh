@@ -29,4 +29,6 @@ sudo -u postgres psql -c "ALTER DATABASE ${DC_DATABASE} OWNER to ${DC_USER};"
 
 # Setup Application Environment
 cd /opt/
+rm -rf venv
+rm .env
 virtualenv venv

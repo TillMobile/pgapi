@@ -35,10 +35,37 @@ class TestAPI(unittest.TestCase):
             }
         }
 
+        self.TYPE_RECORD = {
+            "a" : 1,
+            "b" : 1,
+            "c" : 1,
+            "d" : 1.0,
+            "e" : 1.0,
+            "f" : 1.0,
+            "g" : 1.0,
+            "h" : 1,
+            "i" : 1,
+            "j" : 1,
+            "k" : 1.0,
+            "l" : "11001100",
+            "m" : True,
+            "n" : "a",
+            "o" : "a",
+            "p" : "a",
+            "q" : "2004-10-19 10:23:54",
+            "r" : "2004-10-19 10:23:54",
+            "s" : "2004-10-19 10:23:54",
+            "t" : "2004-10-19 10:23:54",       
+            "u" : "2004-10-19 10:23:54",
+            "v" : {"a": [1,2,3,4,5,6]},
+            "w" : {"x" : 123}
+        }        
+
     def tearDown(self):
         try:
             with self.conn.cursor() as c:
                 c.execute("delete from item;")
+                c.execute("delete from supported_types;")
                 c.execute("ALTER SEQUENCE item_id_seq RESTART")
         finally:
             if self.conn:
@@ -300,6 +327,48 @@ class TestAPI(unittest.TestCase):
         r = self.get("collection/item")
         rlist = r.json()
         self.assertEqual(int(len(rlist)), int(ROW_LIMIT))
+
+    def test_types(self):
+        r = self.insert("collection/supported_types", self.TYPE_RECORD)
+        self.assertEqual(r.status_code, 204)
+        r = self.get("collection/supported_types")
+        self.assertEqual(r.status_code, 200)
+        rlist = r.json()
+        self.assertEqual(len(rlist), 1)
+        rdict = rlist[0]
+
+    def test_types_multiple_inserts(self):
+        record2 = self.TYPE_RECORD.copy()
+        record2["a"] = 23
+        r = self.insert("collection/supported_types", [self.TYPE_RECORD, record2])
+        self.assertEqual(r.status_code, 204, r.text)
+        r = self.get("collection/supported_types")
+        self.assertEqual(r.status_code, 200, r.text)
+        rlist = r.json()
+        self.assertEqual(len(rlist), 2)
+
+    def test_update_jsonb(self):
+        r = self.insert("collection/supported_types", self.TYPE_RECORD)
+        self.assertEqual(r.status_code, 204, r.text)
+        r = self.get("collection/supported_types")
+        self.assertEqual(r.status_code, 200, r.text)
+        rlist = r.json()
+        self.assertEqual(len(rlist), 1)
+        rdict = rlist[0]
+        rdict["v"]["a"] = "XXX"
+        r = self.update("collection/supported_types", 1, rdict)
+        self.assertEqual(r.status_code, 200, r.text)
+        rlist = r.json()
+        self.assertEqual(rlist[0], rdict)
+
+    def test_jsonb_query(self):
+        pass
+
+    def test_hstore_query(self):
+        pass
+
+    def test_binary_comparison_query(self):
+        pass
 
 if __name__ == '__main__':
     unittest.main()

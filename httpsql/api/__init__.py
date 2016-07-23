@@ -15,29 +15,47 @@ import db
 import schema
 import query_gen
 
+from decimal import Decimal
+
+MAX_SCHEMA_WAIT = 15 #seconds
+
+# TODO Add logging
+# TODO Add update by query
+# TODO Add delete by query
+# TODO Add query syntax for JSONB columns
+# TODO Add distinct values endpoint
+# TODO Add mass upsert support
+# TODO Add support for ARRAY
+# TODO Add Geo data types
+# TODO Add a POST handler for functions
+
 ###################################################################################################
 # (De)serialization
 ###################################################################################################
 
-def json_serializer(req, exception):
+def error_serializer(req, exception):
     return ("application/json", exception.to_json())
 
-def iso_8601_json_serializer(obj):
+def json_serializer(obj):
     if isinstance(obj, datetime.datetime):
         return obj.isoformat()
-    raise TypeError ("Type not serializable")
+    elif isinstance(obj, datetime.date):
+        return obj.isoformat() 
+    elif isinstance(obj, datetime.time):
+        return obj.isoformat()                       
+    elif isinstance(obj, bool):
+        return obj
+    elif isinstance(obj, Decimal):
+        return float(obj)
+    elif isinstance(obj, buffer):
+        return unicode(obj)
+    raise_internal_error("Type %s not serializable: %s" % (str(type(obj)), obj))
 
 def to_json(obj):
-    try:
-        return json.dumps(obj, default=iso_8601_json_serializer)
-    except Exception, e:
-        raise_internal_error("Could not serialize")
+    return json.dumps(obj, default=json_serializer, sort_keys=True)
 
 def from_json(obj):
-    try:
-        return json.loads(obj)
-    except Exception, e:
-        raise_bad_request("Invalid JSON passed")    
+    return json.loads(obj)
 
 ###################################################################################################
 # Fuzzy int match for pagination
@@ -55,8 +73,11 @@ def is_int(s):
 ###################################################################################################
 
 def wait_for_schema():
-    while schema.SCHEMA == None or schema.FUNCTIONS == None:
-        time.sleep(0.5)
+    interval = 0.5
+    wait = 0
+    while (schema.SCHEMA == None or schema.FUNCTIONS == None) and wait < MAX_SCHEMA_WAIT:
+        time.sleep(interval)
+        wait += interval
 
 ###################################################################################################
 # Request exceptions
@@ -158,12 +179,18 @@ def delete_table_row(conn, table, pk):
 
 def insert_table_row(conn, table, obj):
     try:
-        params = [obj[x] for x in obj]
+        params = [obj[x] for x in query_gen.typeify(obj, table)]
         with conn.cursor() as c:
-            c.execute(query_gen.insert_table_row_query(table, obj), params)
-            rows = db.dictfetchall(c)
-            if len(rows) > 0:
-                return rows            
+            q = query_gen.insert_table_row_query(table, obj)
+            c.execute(q, params)
+            try:
+                rows = db.dictfetchall(c)
+                if len(rows) > 0:
+                    return rows
+                else:
+                    return []
+            except:
+                pass
     except (query_gen.QueryGenError, psycopg2.DataError, psycopg2.IntegrityError), e:
         raise_bad_request(str(e))
     except Exception, e:
@@ -183,12 +210,17 @@ def insert_table_rows(conn, table, objs):
 def update_table_row(conn, table, pk, obj):
     try:
         query = query_gen.update_table_row_query(schema.PKS, table, obj)
-        params = [obj[x] for x in obj] + [pk]
+        params = [obj[x] for x in query_gen.typeify(obj, table)] + [pk]
         with conn.cursor() as c:
             c.execute(query, params)
-            rows = db.dictfetchall(c)
-            if len(rows) > 0:
-                return rows            
+            try:
+                rows = db.dictfetchall(c)
+                if len(rows) > 0:
+                    return rows            
+                else:
+                    return []
+            except:
+                pass
     except (query_gen.QueryGenError, psycopg2.DataError, psycopg2.IntegrityError), e:
         raise_bad_request(str(e))
     except Exception, e:
@@ -323,7 +355,7 @@ class SingleResource(object):
 ###################################################################################################
 
 app = falcon.API()
-app.set_error_serializer(json_serializer)
+app.set_error_serializer(error_serializer)
 app.add_route('/',                               SchemaResource())
 app.add_route('/function',                       FunctionSchemaResource())
 app.add_route('/collection',                     CollectionSchemaResource())
