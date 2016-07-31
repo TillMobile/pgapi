@@ -8,16 +8,26 @@ import settings
 import psycopg2
 import psycopg2.pool
 import psycopg2.extras
+import log
 
-DB_POOL = psycopg2.pool.SimpleConnectionPool(
-    settings.DB_CONNECTION_POOL_MIN,
-    settings.DB_CONNECTION_POOL_MAX,
-    database=settings.DB_DATABASE,
-    user=settings.DB_USER,
-    password=settings.DB_PASSWORD,
-    host=settings.DB_HOST,
-    port=settings.DB_PORT
-)
+DB_ONLINE = False
+DB_POOL = None
+
+try:
+    DB_POOL = psycopg2.pool.SimpleConnectionPool(
+        settings.DB_CONNECTION_POOL_MIN,
+        settings.DB_CONNECTION_POOL_MAX,
+        database=settings.DB_DATABASE,
+        user=settings.DB_USER,
+        password=settings.DB_PASSWORD,
+        host=settings.DB_HOST,
+        port=settings.DB_PORT,
+        connect_timeout=settings.DB_CONNECTION_TIMEOUT_SECONDS
+    )
+    DB_ONLINE = True
+    log.info("Connected to DB")
+except psycopg2.OperationalError, e:
+    log.error("Could not connect to DB: %s" % str(e))
 
 def get_conn(autocommit=True):
     conn = DB_POOL.getconn()

@@ -4,8 +4,8 @@ machine:
 
 dependencies:
   override:
-    - docker build -t tillmobileinc/httpsql-test .
+    - docker build -t httpsql-test .
 
 test:
   override:
-    - docker run -it tillmobileinc/httpsql-test /opt/test/scripts/test.sh
+    - docker run -it httpsql-test /opt/test/scripts/test.sh

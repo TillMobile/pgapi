@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
 
+# Clean up env
+cd /opt/
+rm -rf venv
+rm .env
+
 # Setup Environment
 DC_DATABASE=till`cat /dev/urandom | tr -cd 'a-f0-9' | head -c 32`
 DC_USER=till`cat /dev/urandom | tr -cd 'a-f0-9' | head -c 32`

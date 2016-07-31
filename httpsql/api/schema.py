@@ -4,11 +4,10 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-import time
-import threading
 import collections
 import settings
 import db
+import log
 import query_gen
 
 SCHEMA    = None
@@ -146,27 +145,8 @@ def get_schema(conn):
 
     return schema, functions, pks
 
-def async_get_schema(get_schema, refresh_seconds):
-    global SCHEMA
-    global FUNCTIONS
-    global PKS
-    while True:
-        conn = None
-        try:
-            conn = db.get_conn()
-            SCHEMA, FUNCTIONS, PKS = get_schema(conn)
-        finally:
-            if conn:
-                db.release_conn(conn)
-        time.sleep(refresh_seconds)
-
-with db.conn() as conn:
-    SCHEMA, FUNCTIONS, PKS = get_schema(conn)
-
-if settings.SCHEMA_REFRESH_SECONDS > 0:
-    api_definition_thread = threading.Thread(
-        target=async_get_schema,
-        args=(get_schema, settings.SCHEMA_REFRESH_SECONDS)
-    )
-    api_definition_thread.setDaemon(True)
-api_definition_thread.start()
+if db.DB_ONLINE:
+    log.debug("Start retrieve schema")
+    with db.conn() as conn:
+        SCHEMA, FUNCTIONS, PKS = get_schema(conn)
+        log.debug("Finish retrieve schema")

@@ -1,8 +1,8 @@
-```
-Warning: This is an active WIP. Proceed with caution!
-```
+# HTTPSQL
 
-## API Quickstart
+PostgreSQL DB to RESTful API in seconds flat
+
+## Quickstart
 
 Create your `.env` file with a few variables:
 - `DB_DATABASE`
@@ -13,59 +13,93 @@ Create your `.env` file with a few variables:
 - `DB_PORT`
 - `DB_CONNECTION_POOL_MIN`
 - `DB_CONNECTION_POOL_MAX`
-- `SCHEMA_AUTO_REFRESH_SECONDS` (Optional)
-- `API_COLLECTION_ROW_LIMIT` (Optional)
+- `API_COLLECTION_ROW_LIMIT` (Optional. Default `25`)
+- `API_LOG_LEVEL` (Optional. Default `INFO`)
 
-Create and source a fresh virtualenv:
+Create and source a fresh environment:
 - `virtualenv venv`
 - `source venv/bin/activate`
 
 Install:
 - `pip install https://github.com/TillMobile/httpsql/zipball/master/`
 
-Start gunicorn (or your favorite WSGI server):
+Serve via gunicorn or your favorite WSGI server:
 - `pip install gunicorn`
 - `gunicorn httpsql.api:app`
-- http://localhost:8000/
+- http://127.0.0.1:8000/
+
+## DB Support 
+
+PostgreSQL >= 9.4 supported.
+
+Types:
+* smallint
+* integer
+* bigint  
+* decimal  
+* numeric  
+* real  
+* double precision  
+* smallserial  
+* serial  
+* bigserial  
+* money  
+* bytea  
+* boolean  
+* varchar  
+* char  
+* text  
+* timestamp without time zone  
+* timestamp with time zone  
+* date  
+* time without time zone  
+* time with time zone  
+* jsonb  
+* hstore  
+
+**Not** supported:
+* ARRAY
 
 ## Usage via HTTP(S)
 
 ### Schema
-Retrieve the list of available collections and functions. Each collection lists its fields and their data types. Each function lists it's return type and parmaters.
+Retrieve the list of available collections and functions. Each collection lists its fields w/data-type and query operators Each exposed function lists it's return type and parameters. Both collections and functions list available methods (enforced via DB grants for Insert/Select/Delete/Execute) and any comments for the object set in the DB.
 
 GET `/`
 
 ```
 {
-  "functions": {
-    "items_by_size": {
-      "type": "item", 
-      "parameters": {
-        "t_size": "string"
+  collection: {
+    item: {
+      comments: null,
+      endpoint: "/collection/item/",
+      methods: ["PUT", "GET", "POST", "DELETE"],
+      columns: {
+        attributes: "hstore",
+        description: "character varying",
+        id: "integer",
+        name: "character varying"
+      },
+      operators: {
+        contains: "Contains i.e. like",
+        exact: "Equal to",
+        gt: "Greater than",
+        gte: "Greater than or equal to",
+        lt: "Less than",
+        lte: "Less than or equal to",
+        match: "Regex match",
+        not: "Not equal to"
       }
     }
-  }, 
-  "collections": {
-    "item": {
-      "attributes": {
-        "read_only": false, 
-        "is_pk": null, 
-        "type": "map"
-      }, 
-      "description": {
-        "read_only": false, 
-        "is_pk": null, 
-        "type": "string"
-      }, 
-      "id": {
-        "read_only": false, 
-        "is_pk": true, 
-        "type": "number"
-      }, 
-      "name": {
-        "read_only": false, 
-        "is_pk": null, 
-        "type": "string"
+  },
+  function: {
+    items_by_size: {
+      type: "item",
+      comments: null,
+      endpoint: "/function/items_by_size/",
+      methods: ["GET", "POST"],
+      parameters: {
+        t_size: "character varying"
       }
     }
   }
@@ -161,14 +195,6 @@ Response JSON
 }]
 ```
 
-Available query operators:
-- `lt` (Less than)
-- `lte` (Less than or equal)
-- `gt` (Greater than)
-- `gte` (Greater than or equal)
-- `exact` (Equal)
-- `contains` (Like)
-
 Query examples:
 - `name__exact=Shoe X`
 - `attributes.weight__lte=5`
@@ -216,7 +242,7 @@ Response JSON
 }]
 ```
 
-## Usage via client `client`
+## Usage via embedded client
 
 ```
 from httpsql import client
@@ -241,12 +267,12 @@ client.collection.table_or_view.get(1)
 
 # Insert record(s)
 client.collection.table_or_view.insert([{
-  "name" : "Nice"	
+  "name" : "Nice" 
 }])
 
 # Update record
 client.collection.table_or_view.update(1, {
-	"name" : "Dang"
+  "name" : "Dang"
 })
 
 # Describe collection
