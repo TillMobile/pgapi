@@ -18,7 +18,8 @@ REQUIRES = [
   "falcon==0.3.0",
   "python-mimeparse==1.5.2",
   "six==1.10.0",
-  "requests==2.10.0"
+  "requests==2.10.0",
+  "gunicorn==19.6.0"
 ]
 
 cmdclass = {}
